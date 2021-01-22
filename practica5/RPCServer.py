@@ -1,13 +1,25 @@
 from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
+import threading
 import sys
 import random
 import json
+import sqlite3
+from sqlite3 import Error
 
 # Restrict to a particular path.
 class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
 
+class ServerThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        #self.daemon=True
+        self.localServer = SimpleXMLRPCServer(("localhost",8000),requestHandler=RequestHandler)
+        self.localServer.register_introspection_functions()
+        self.localServer.register_instance(pasoDeMensajes())
+    def run(self):
+         self.localServer.serve_forever()
 
 class pasoDeMensajes:
     def __init__(self):
@@ -19,25 +31,30 @@ class pasoDeMensajes:
     def reinicia(self):
         #Reinicia el status de todos los libros
         self.usados.clear()
+        return 'Listo'
     def pideLibro(self):
-        while True:
-            if len(self.usados)==3:
-                return -1
-            numero = random.randint(0,2)
-            if not(numero in self.usados):
-                self.usados.add(numero)
-                #print(json.dumps(self.libros[numero]))
-                return json.dumps(self.libros[numero])
+        result=''
+        with sqlite3.connect('libros.db') as db:
+            cursor = db.cursor()
+            cursor.execute('SELECT * from libros where status=\'disponible\'')
+            resultados= cursor.fetchall()
+            if len(resultados)==0:
+                result= -1
+            numero = random.randint(0,len(resultados)-1)
+            cursor.execute('UPDATE libros set status=\'usado\' where id='+str(numero))
+            db.commit()
+            result = json.dumps(resultados[numero])
+        return result
         
 
 
 try:
-    server= SimpleXMLRPCServer(('localhost',8000),requestHandler=RequestHandler)
-    server.register_introspection_functions()
-    server.register_instance(pasoDeMensajes())
+
+    server= ServerThread()
+    server.start()
+    
     print("Escuchando en la direccion localhost:8000")
-    # Run the server's main loop
-    server.serve_forever()
+
 except Exception as e:
     print(str(e))
 except KeyboardInterrupt:
