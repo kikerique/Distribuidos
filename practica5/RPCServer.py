@@ -30,20 +30,34 @@ class pasoDeMensajes:
         self.usados=set()
     def reinicia(self):
         #Reinicia el status de todos los libros
-        self.usados.clear()
+        try:
+            with sqlite3.connect('libros.db') as db:
+                cursor = db.cursor()
+                for i in range(4):
+                    id=i+1
+                    cursor.execute('UPDATE libros set status=\'disponible\' where id='+str(id))
+                    db.commit()
+        except Error:
+            print(Error)
         return 'Listo'
     def pideLibro(self):
-        result=''
-        with sqlite3.connect('libros.db') as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT * from libros where status=\'disponible\'')
-            resultados= cursor.fetchall()
-            if len(resultados)==0:
-                result= -1
-            numero = random.randint(0,len(resultados)-1)
-            cursor.execute('UPDATE libros set status=\'usado\' where id='+str(numero))
-            db.commit()
-            result = json.dumps(resultados[numero])
+        result=-1
+        try:
+            with sqlite3.connect('libros.db') as db:
+                cursor = db.cursor()
+                cursor.execute('SELECT * from libros where status=\'disponible\'')
+                resultados= cursor.fetchall()
+                if len(resultados)==0:
+                    result= -1
+                else:
+                    numero = random.randint(0,len(resultados)-1)
+                    result = json.dumps(resultados[numero])
+                    cursor.execute('UPDATE libros set status=\'usado\' where id='+str(resultados[numero][0]))
+                    db.commit()
+        except Error:
+            print(Error)
+        print(result)
+
         return result
         
 

@@ -38,5 +38,5 @@ class hiloServidor(threading.Thread):
 
         except IOError as e:
             #print(e)
-            self.archivo.close()
+            #self.archivo.close()
             pass
